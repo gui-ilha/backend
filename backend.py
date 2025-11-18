@@ -11,40 +11,34 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/analise", methods=["POST"])
 def analise():
+    data = request.json
 
-    # Verifica se veio arquivo
-    if "image" not in request.files:
-        return jsonify({"erro": "Nenhuma imagem enviada"}), 400
+    # Se veio texto
+    if "texto" in data:
+        prompt = data["texto"]
 
-    image_file = request.files["image"]
-    img_bytes = image_file.read()
-    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+    # Se veio imagem base64
+    elif "imagem" in data:
+        prompt = f"Descreva o conteúdo desta imagem em detalhes:\nIMAGEM(base64): {data['imagem']}"
+
+    else:
+        return jsonify({"erro": "Nenhum texto ou imagem enviado"}), 400
 
     try:
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "input_image", "image_url": f"data:image/jpeg;base64,{img_b64}"},
-                        {
-                            "type": "text",
-                            "text": "Analise esta estrutura e descreva possíveis danos."
-                        },
-                    ],
-                }
-            ],
+            messages=[{"role": "user", "content": prompt}]
         )
 
         resultado = response.choices[0].message["content"]
-
         return jsonify({"resultado": resultado})
 
     except Exception as e:
-        print("ERRO:", e)
-        return jsonify({"erro": "Falha ao chamar a API OpenAI"}), 500
+        print(e)
+        return jsonify({"erro": str(e)}), 500
+
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
